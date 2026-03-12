@@ -6,6 +6,18 @@ extension KeyboardShortcuts.Name {
     static let startStopTimer = Self("startStopTimer")
 }
 
+private func localizedTargetText(setNumber: Int, pomodoroNumber: Int) -> String {
+    let format = NSLocalizedString("StatsView.target.format", comment: "Target format")
+    return String.localizedStringWithFormat(format, setNumber, pomodoroNumber)
+}
+
+private func heatmapDateText(for date: Date) -> String {
+    let formatter = DateFormatter()
+    formatter.dateStyle = .medium
+    formatter.timeStyle = .none
+    return formatter.string(from: date)
+}
+
 private struct IntervalsView: View {
     @EnvironmentObject var timer: TBTimer
     private var minStr = NSLocalizedString("IntervalsView.min", comment: "min")
@@ -125,41 +137,319 @@ private struct SoundsView: View {
     }
 }
 
+private struct StatRow: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(label)
+                .foregroundColor(.secondary)
+            Spacer()
+            Text(value)
+                .multilineTextAlignment(.trailing)
+        }
+        .font(.subheadline)
+    }
+}
+
+private struct StatsSectionView: View {
+    let title: String
+    let rows: [(String, String)]
+
+    var body: some View {
+        GroupBox(label: Text(title)) {
+            VStack(spacing: 8) {
+                ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                    StatRow(label: row.0, value: row.1)
+                }
+            }
+            .padding(.top, 4)
+        }
+    }
+}
+
+private struct HeatmapGridView: View {
+    let days: [TBHeatmapDay]
+
+    private var columns: [[TBHeatmapDay?]] {
+        var result: [[TBHeatmapDay?]] = []
+        var currentColumn: [TBHeatmapDay?] = []
+
+        for day in days {
+            currentColumn.append(day)
+            if currentColumn.count == 7 {
+                result.append(currentColumn)
+                currentColumn = []
+            }
+        }
+
+        if !currentColumn.isEmpty {
+            while currentColumn.count < 7 {
+                currentColumn.append(nil)
+            }
+            result.append(currentColumn)
+        }
+
+        return result
+    }
+
+    private func color(for count: Int) -> Color {
+        switch count {
+        case ..<1:
+            return Color.orange.opacity(0.12)
+        case 1:
+            return Color.orange.opacity(0.35)
+        case 2:
+            return Color.orange.opacity(0.55)
+        case 3:
+            return Color.orange.opacity(0.75)
+        default:
+            return Color.orange
+        }
+    }
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(alignment: .top, spacing: 4) {
+                ForEach(Array(columns.enumerated()), id: \.offset) { _, column in
+                    VStack(spacing: 4) {
+                        ForEach(Array(column.enumerated()), id: \.offset) { _, day in
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(color(for: day?.count ?? 0))
+                                .frame(width: 11, height: 11)
+                                .help(day.map { heatmapHelpText(for: $0) } ?? "")
+                        }
+                    }
+                }
+            }
+            .padding(.vertical, 2)
+        }
+    }
+
+    private func heatmapHelpText(for day: TBHeatmapDay) -> String {
+        let dateText = heatmapDateText(for: day.date)
+        return "\(dateText): \(day.count)"
+    }
+}
+
+private struct StatsView: View {
+    @EnvironmentObject var timer: TBTimer
+    @State private var heatmapRange = TBHeatmapRange.last30Days
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            StatsSectionView(
+                title: NSLocalizedString("StatsView.session.title", comment: "Session title"),
+                rows: [
+                    (
+                        NSLocalizedString("StatsView.pomodoros.label", comment: "Pomodoros label"),
+                        "\(timer.completedPomodorosInSession)"
+                    ),
+                    (
+                        NSLocalizedString("StatsView.breakDuration.label", comment: "Break duration label"),
+                        timer.formattedDuration(seconds: timer.completedBreakSecondsInSession)
+                    ),
+                    (
+                        NSLocalizedString("StatsView.currentPhase.label", comment: "Current phase label"),
+                        timer.phaseDisplayText
+                    ),
+                    (
+                        NSLocalizedString("StatsView.target.label", comment: "Target label"),
+                        localizedTargetText(setNumber: timer.currentSetNumber, pomodoroNumber: timer.currentPomodoroNumber)
+                    )
+                ]
+            )
+
+            StatsSectionView(
+                title: NSLocalizedString("StatsView.today.title", comment: "Today title"),
+                rows: [
+                    (
+                        NSLocalizedString("StatsView.pomodoros.label", comment: "Pomodoros label"),
+                        "\(timer.todaySummary.pomodoroCount)"
+                    ),
+                    (
+                        NSLocalizedString("StatsView.breakDuration.label", comment: "Break duration label"),
+                        timer.formattedDuration(seconds: timer.todaySummary.breakSeconds)
+                    )
+                ]
+            )
+
+            GroupBox(label: Text(NSLocalizedString("StatsView.heatmap.title", comment: "Heatmap title"))) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Picker("", selection: $heatmapRange) {
+                        Text(NSLocalizedString("StatsView.heatmap.30d.label", comment: "30 day heatmap label"))
+                            .tag(TBHeatmapRange.last30Days)
+                        Text(NSLocalizedString("StatsView.heatmap.365d.label", comment: "365 day heatmap label"))
+                            .tag(TBHeatmapRange.last365Days)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+
+                    HeatmapGridView(days: timer.heatmapDays(for: heatmapRange))
+                }
+                .padding(.top, 4)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(4)
+    }
+}
+
+private struct ClockDialView: View {
+    let progress: Double
+    let tint: Color
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(tint.opacity(0.14), lineWidth: 14)
+
+            ForEach(0 ..< 60, id: \.self) { index in
+                Rectangle()
+                    .fill(tint.opacity(index.isMultiple(of: 5) ? 0.4 : 0.18))
+                    .frame(width: 2, height: index.isMultiple(of: 5) ? 10 : 5)
+                    .offset(y: -102)
+                    .rotationEffect(.degrees(Double(index) * 6))
+            }
+
+            Circle()
+                .trim(from: 0, to: max(progress, 0.01))
+                .stroke(tint, style: StrokeStyle(lineWidth: 14, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+
+            Rectangle()
+                .fill(tint)
+                .frame(width: 4, height: 72)
+                .offset(y: -36)
+                .rotationEffect(.degrees((progress * 360) - 90))
+
+            Circle()
+                .fill(tint)
+                .frame(width: 16, height: 16)
+        }
+    }
+}
+
+struct TBClockWindowView: View {
+    @ObservedObject var timer: TBTimer
+    @ObservedObject var controller: TBClockWindowController
+
+    private var targetText: String {
+        localizedTargetText(setNumber: timer.currentSetNumber, pomodoroNumber: timer.currentPomodoroNumber)
+    }
+
+    private var dialTint: Color {
+        switch timer.currentIntervalKind {
+        case .work:
+            return .orange
+        case .shortRest:
+            return .green
+        case .longRest:
+            return .blue
+        case nil:
+            return .orange
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 18) {
+            ClockDialView(progress: timer.progressFraction, tint: dialTint)
+                .frame(width: 240, height: 240)
+                .overlay(
+                    VStack(spacing: 6) {
+                        Text(timer.timeLeftString)
+                            .font(.system(size: 34, weight: .semibold, design: .monospaced))
+                        Text(timer.phaseDisplayText)
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                    }
+                )
+
+            Text(targetText)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+
+            HStack(spacing: 10) {
+                Button(timer.primaryActionTitle) {
+                    timer.performPrimaryAction()
+                }
+                .keyboardShortcut(.defaultAction)
+
+                if timer.canReset {
+                    Button(NSLocalizedString("TBPopoverView.reset.label", comment: "Reset label")) {
+                        timer.resetCurrentInterval()
+                    }
+                }
+            }
+            .controlSize(.large)
+
+            Toggle(isOn: $controller.isPinned) {
+                Text(NSLocalizedString("ClockWindow.pin.label", comment: "Pin window label"))
+            }
+            .toggleStyle(.switch)
+        }
+        .padding(22)
+        .frame(minWidth: 320, minHeight: 360)
+    }
+}
+
 private enum ChildView {
-    case intervals, settings, sounds
+    case intervals, settings, sounds, stats
 }
 
 struct TBPopoverView: View {
-    @ObservedObject var timer = TBTimer()
-    @State private var buttonHovered = false
+    @ObservedObject var timer: TBTimer
+    @ObservedObject var clockWindowController: TBClockWindowController
     @State private var activeChildView = ChildView.intervals
 
-    private var startLabel = NSLocalizedString("TBPopoverView.start.label", comment: "Start label")
-    private var stopLabel = NSLocalizedString("TBPopoverView.stop.label", comment: "Stop label")
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Button(timer.primaryActionTitle) {
+                    timer.performPrimaryAction()
+                    TBStatusItem.shared?.closePopover(nil)
+                }
+                .foregroundColor(.white)
+                .font(.system(.body).weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .controlSize(.large)
+                .keyboardShortcut(.defaultAction)
+
+                if timer.canReset {
+                    Button(NSLocalizedString("TBPopoverView.reset.label", comment: "Reset label")) {
+                        timer.resetCurrentInterval()
+                        TBStatusItem.shared?.closePopover(nil)
+                    }
+                    .controlSize(.large)
+                }
+            }
+
+            if timer.canReset {
+                HStack {
+                    Text(timer.phaseDisplayText)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text(timer.timeLeftString)
+                        .font(.system(.headline).monospacedDigit())
+                }
+            }
+
             Button {
-                timer.startStop()
-                TBStatusItem.shared.closePopover(nil)
+                clockWindowController.toggle()
+                TBStatusItem.shared?.closePopover(nil)
             } label: {
-                Text(timer.timer != nil ?
-                     (buttonHovered ? stopLabel : timer.timeLeftString) :
-                        startLabel)
-                    /*
-                      When appearance is set to "Dark" and accent color is set to "Graphite"
-                      "defaultAction" button label's color is set to the same color as the
-                      button, making the button look blank. #24
-                     */
-                    .foregroundColor(Color.white)
-                    .font(.system(.body).monospacedDigit())
-                    .frame(maxWidth: .infinity)
+                HStack {
+                    Text(
+                        clockWindowController.isVisible
+                            ? NSLocalizedString("TBPopoverView.clockWindow.hide.label", comment: "Hide clock window label")
+                            : NSLocalizedString("TBPopoverView.clockWindow.show.label", comment: "Show clock window label")
+                    )
+                    Spacer()
+                    Text(timer.timeLeftString).foregroundColor(.gray)
+                }
             }
-            .onHover { over in
-                buttonHovered = over
-            }
-            .controlSize(.large)
-            .keyboardShortcut(.defaultAction)
+            .buttonStyle(.plain)
 
             Picker("", selection: $activeChildView) {
                 Text(NSLocalizedString("TBPopoverView.intervals.label",
@@ -168,6 +458,8 @@ struct TBPopoverView: View {
                                        comment: "Settings label")).tag(ChildView.settings)
                 Text(NSLocalizedString("TBPopoverView.sounds.label",
                                        comment: "Sounds label")).tag(ChildView.sounds)
+                Text(NSLocalizedString("TBPopoverView.stats.label",
+                                       comment: "Stats label")).tag(ChildView.stats)
             }
             .labelsHidden()
             .frame(maxWidth: .infinity)
@@ -181,6 +473,8 @@ struct TBPopoverView: View {
                     SettingsView().environmentObject(timer)
                 case .sounds:
                     SoundsView().environmentObject(timer.player)
+                case .stats:
+                    StatsView().environmentObject(timer)
                 }
             }
 
@@ -225,6 +519,7 @@ struct TBPopoverView: View {
             /* Use values from GeometryReader */
 //            .frame(width: 240, height: 276)
             .padding(12)
+            .frame(width: 336)
     }
 }
 

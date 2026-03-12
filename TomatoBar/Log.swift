@@ -19,10 +19,10 @@ class TBLogEventTransition: TBLogEvent {
     private let fromState: String
     private let toState: String
 
-    init(fromContext ctx: TBStateMachine.Context) {
-        event = "\(ctx.event!)"
-        fromState = "\(ctx.fromState)"
-        toState = "\(ctx.toState)"
+    init(event: TBTimerEvent, fromState: TBTimerState, toState: TBTimerState) {
+        self.event = event.rawValue
+        self.fromState = fromState.rawValue
+        self.toState = toState.rawValue
     }
 }
 
