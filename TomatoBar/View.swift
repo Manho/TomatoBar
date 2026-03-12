@@ -353,15 +353,17 @@ struct TBClockWindowView: View {
             let scaleFactor = max(shortSide / referenceDimension, 0.35)
 
             // All dimensions derived from single scale factor
-            let dialSize = min(220 * scaleFactor, shortSide * 0.6)
+            let dialSize = min(220 * scaleFactor, shortSide * 0.7)
             let timeFontSize = max(36 * scaleFactor, 14)
             let phaseFontSize = max(16 * scaleFactor, 11)
             let targetFontSize = max(14 * scaleFactor, 11)
             let pinLabelFontSize = max(13 * scaleFactor, 11)
-            let padding = max(16 * scaleFactor, 4)
-            let controlsSpacing = max(14 * scaleFactor, 4)
             let buttonWidth = max(100 * scaleFactor, 48)
             let buttonSpacing = max(10 * scaleFactor, 4)
+
+            // Inner spacing: generous breathing room between elements
+            let dialToTextSpacing = max(16 * scaleFactor, 6)
+            let textToButtonSpacing = max(16 * scaleFactor, 6)
 
             // Only 2 simple thresholds for hiding secondary elements
             let showDetails = shortSide >= 200
@@ -393,7 +395,7 @@ struct TBClockWindowView: View {
                         .foregroundColor(.secondary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.72)
-                        .padding(.top, max(8 * scaleFactor, 2))
+                        .padding(.top, dialToTextSpacing)
                 }
 
                 // Action buttons
@@ -412,7 +414,7 @@ struct TBClockWindowView: View {
                     }
                 }
                 .controlSize(controlSize)
-                .padding(.top, controlsSpacing)
+                .padding(.top, showDetails ? textToButtonSpacing : dialToTextSpacing)
 
                 // Pin toggle
                 if showPin {
@@ -426,7 +428,8 @@ struct TBClockWindowView: View {
 
                 Spacer(minLength: 0)
             }
-            .padding(padding)
+            .padding(.horizontal, max(4 * scaleFactor, 2))
+            .padding(.vertical, max(2 * scaleFactor, 1))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(minWidth: 148, minHeight: 150)
