@@ -290,21 +290,34 @@ private struct StatsView: View {
 }
 
 private struct ClockDialView: View {
+    let diameter: CGFloat
     let progress: Double
     let tint: Color
+
+    private var progressLineWidth: CGFloat {
+        min(max(diameter * 0.05, 10), 16)
+    }
+
+    private var innerLineWidth: CGFloat {
+        min(max(diameter * 0.008, 1.5), 2.5)
+    }
+
+    private var innerPadding: CGFloat {
+        min(max(diameter * 0.065, 12), 20)
+    }
 
     var body: some View {
         ZStack {
             Circle()
-                .stroke(tint.opacity(0.14), lineWidth: 14)
+                .stroke(tint.opacity(0.14), lineWidth: progressLineWidth)
 
             Circle()
-                .stroke(Color.primary.opacity(0.05), lineWidth: 2)
-                .padding(18)
+                .stroke(Color.primary.opacity(0.05), lineWidth: innerLineWidth)
+                .padding(innerPadding)
 
             Circle()
                 .trim(from: 0, to: max(progress, 0.01))
-                .stroke(tint, style: StrokeStyle(lineWidth: 14, lineCap: .round))
+                .stroke(tint, style: StrokeStyle(lineWidth: progressLineWidth, lineCap: .round))
                 .rotationEffect(.degrees(-90))
         }
     }
@@ -334,65 +347,97 @@ struct TBClockWindowView: View {
     var body: some View {
         GeometryReader { proxy in
             let size = proxy.size
-            let dialSize = min(size.width - 72, size.height * 0.5)
-            let clampedDialSize = min(max(220, dialSize), 320)
-            let timeFontSize = min(max(34, clampedDialSize * 0.21), 58)
-            let phaseFontSize = min(max(18, clampedDialSize * 0.08), 28)
-            let targetFontSize = min(max(18, clampedDialSize * 0.07), 24)
-            let targetTopSpacing = min(max(14, size.height * 0.03), 22)
-            let controlsTopSpacing = min(max(16, size.height * 0.035), 24)
-            let pinTopSpacing = min(max(16, size.height * 0.04), 24)
-            let buttonWidth = min(max(108, size.width * 0.24), 132)
-            let horizontalPadding = min(max(24, size.width * 0.06), 36)
-            let verticalPadding = min(max(22, size.height * 0.05), 30)
+            let compactLayout = size.width < 330 || size.height < 390
+            let horizontalPadding = compactLayout ? 14.0 : 18.0
+            let verticalPadding = compactLayout ? 14.0 : 18.0
+            let controlsTopSpacing = compactLayout ? 14.0 : 18.0
+            let targetTopSpacing = compactLayout ? 0.0 : 12.0
+            let pinTopSpacing = compactLayout ? 0.0 : 16.0
+            let buttonWidth = compactLayout
+                ? min(max(size.width * 0.3, 86), 104)
+                : min(max(size.width * 0.24, 102), 120)
+            let buttonHeightEstimate = compactLayout ? 32.0 : 36.0
+            let targetBlockHeight = compactLayout ? 0.0 : 32.0
+            let pinBlockHeight = compactLayout ? 0.0 : 34.0
+            let dialAvailableHeight = size.height
+                - (verticalPadding * 2)
+                - controlsTopSpacing
+                - buttonHeightEstimate
+                - targetTopSpacing
+                - targetBlockHeight
+                - pinTopSpacing
+                - pinBlockHeight
+            let dialAvailableWidth = size.width - (horizontalPadding * 2)
+            let dialMinimum = compactLayout ? 164.0 : 200.0
+            let dialMaximum = compactLayout ? 238.0 : 320.0
+            let clampedDialSize = min(max(dialMinimum, min(dialAvailableWidth, dialAvailableHeight)), dialMaximum)
+            let timeFontSize = compactLayout
+                ? min(max(clampedDialSize * 0.18, 28), 42)
+                : min(max(clampedDialSize * 0.18, 32), 50)
+            let phaseFontSize = compactLayout
+                ? min(max(clampedDialSize * 0.07, 14), 19)
+                : min(max(clampedDialSize * 0.072, 16), 22)
+            let targetFontSize = min(max(clampedDialSize * 0.06, 14), 20)
+            let pinLabelFontSize = min(max(clampedDialSize * 0.05, 13), 17)
+            let controlSize: ControlSize = compactLayout ? .regular : .large
 
-            VStack(spacing: 0) {
-                ClockDialView(progress: timer.progressFraction, tint: dialTint)
-                    .frame(width: clampedDialSize, height: clampedDialSize)
-                    .overlay(
-                        VStack(spacing: max(6, clampedDialSize * 0.025)) {
-                            Text(timer.timeLeftString)
-                                .font(.system(size: timeFontSize, weight: .semibold, design: .monospaced))
-                            Text(timer.phaseDisplayText)
-                                .font(.system(size: phaseFontSize, weight: .semibold))
-                                .foregroundColor(.secondary)
-                        }
-                    )
+            VStack {
+                Spacer(minLength: 0)
 
-                Text(targetText)
-                    .font(.system(size: targetFontSize, weight: .medium))
-                    .foregroundColor(.secondary)
-                    .padding(.top, targetTopSpacing)
+                VStack(spacing: 0) {
+                    ClockDialView(diameter: clampedDialSize, progress: timer.progressFraction, tint: dialTint)
+                        .frame(width: clampedDialSize, height: clampedDialSize)
+                        .overlay(
+                            VStack(spacing: compactLayout ? 4 : 6) {
+                                Text(timer.timeLeftString)
+                                    .font(.system(size: timeFontSize, weight: .semibold, design: .monospaced))
+                                Text(timer.phaseDisplayText)
+                                    .font(.system(size: phaseFontSize, weight: .semibold))
+                                    .foregroundColor(.secondary)
+                            }
+                        )
 
-                HStack(spacing: 10) {
-                    Button(timer.primaryActionTitle) {
-                        timer.performPrimaryAction()
+                    if !compactLayout {
+                        Text(targetText)
+                            .font(.system(size: targetFontSize, weight: .medium))
+                            .foregroundColor(.secondary)
+                            .padding(.top, targetTopSpacing)
                     }
-                    .keyboardShortcut(.defaultAction)
-                    .frame(width: buttonWidth)
 
-                    if timer.canReset {
-                        Button(NSLocalizedString("TBPopoverView.reset.label", comment: "Reset label")) {
-                            timer.resetCurrentInterval()
+                    HStack(spacing: compactLayout ? 8 : 10) {
+                        Button(timer.primaryActionTitle) {
+                            timer.performPrimaryAction()
                         }
+                        .keyboardShortcut(.defaultAction)
                         .frame(width: buttonWidth)
+
+                        if timer.canReset {
+                            Button(NSLocalizedString("TBPopoverView.reset.label", comment: "Reset label")) {
+                                timer.resetCurrentInterval()
+                            }
+                            .frame(width: buttonWidth)
+                        }
+                    }
+                    .controlSize(controlSize)
+                    .padding(.top, controlsTopSpacing)
+
+                    if !compactLayout {
+                        Toggle(isOn: $controller.isPinned) {
+                            Text(NSLocalizedString("ClockWindow.pin.label", comment: "Pin window label"))
+                                .font(.system(size: pinLabelFontSize, weight: .medium))
+                        }
+                        .toggleStyle(.switch)
+                        .padding(.top, pinTopSpacing)
                     }
                 }
-                .controlSize(.large)
-                .padding(.top, controlsTopSpacing)
+                .padding(.horizontal, horizontalPadding)
+                .padding(.vertical, verticalPadding)
 
-                Toggle(isOn: $controller.isPinned) {
-                    Text(NSLocalizedString("ClockWindow.pin.label", comment: "Pin window label"))
-                        .font(.system(size: min(max(16, clampedDialSize * 0.06), 22), weight: .medium))
-                }
-                .toggleStyle(.switch)
-                .padding(.top, pinTopSpacing)
+                Spacer(minLength: 0)
             }
-            .padding(.horizontal, horizontalPadding)
-            .padding(.vertical, verticalPadding)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
-        .frame(minWidth: 320, minHeight: 420)
+        .frame(minWidth: 260, minHeight: 300)
     }
 }
 

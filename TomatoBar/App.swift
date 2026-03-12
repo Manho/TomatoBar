@@ -81,7 +81,7 @@ class TBClockWindowController: NSObject, ObservableObject, NSWindowDelegate {
         window.titlebarAppearsTransparent = true
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         window.isMovableByWindowBackground = true
-        window.minSize = NSSize(width: 320, height: 420)
+        window.minSize = NSSize(width: 260, height: 300)
         window.setContentSize(NSSize(width: 360, height: 500))
         window.center()
         self.window = window
