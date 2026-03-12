@@ -389,26 +389,39 @@ struct TBPopoverView: View {
     @ObservedObject var clockWindowController: TBClockWindowController
     @State private var activeChildView = ChildView.intervals
 
+    @ViewBuilder
+    private var primaryActionButton: some View {
+        Button(timer.primaryActionTitle) {
+            timer.performPrimaryAction()
+            TBStatusItem.shared?.closePopover(nil)
+        }
+        .foregroundColor(.white)
+        .font(.system(.body).weight(.semibold))
+        .controlSize(.large)
+        .keyboardShortcut(.defaultAction)
+    }
+
+    @ViewBuilder
+    private var resetActionButton: some View {
+        Button(NSLocalizedString("TBPopoverView.reset.label", comment: "Reset label")) {
+            timer.resetCurrentInterval()
+            TBStatusItem.shared?.closePopover(nil)
+        }
+        .controlSize(.large)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Button(timer.primaryActionTitle) {
-                    timer.performPrimaryAction()
-                    TBStatusItem.shared?.closePopover(nil)
+            if timer.canReset {
+                HStack(spacing: 10) {
+                    primaryActionButton
+                        .frame(maxWidth: .infinity)
+                    resetActionButton
+                        .frame(maxWidth: .infinity)
                 }
-                .foregroundColor(.white)
-                .font(.system(.body).weight(.semibold))
-                .frame(maxWidth: .infinity)
-                .controlSize(.large)
-                .keyboardShortcut(.defaultAction)
-
-                if timer.canReset {
-                    Button(NSLocalizedString("TBPopoverView.reset.label", comment: "Reset label")) {
-                        timer.resetCurrentInterval()
-                        TBStatusItem.shared?.closePopover(nil)
-                    }
-                    .controlSize(.large)
-                }
+            } else {
+                primaryActionButton
+                    .frame(maxWidth: .infinity)
             }
 
             if timer.canReset {
