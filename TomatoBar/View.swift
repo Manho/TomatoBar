@@ -305,28 +305,14 @@ private struct ClockDialView: View {
             Circle()
                 .stroke(tint.opacity(0.14), lineWidth: 14)
 
-            ForEach(0 ..< 60, id: \.self) { index in
-                Rectangle()
-                    .fill(tint.opacity(index.isMultiple(of: 5) ? 0.4 : 0.18))
-                    .frame(width: 2, height: index.isMultiple(of: 5) ? 10 : 5)
-                    .offset(y: -102)
-                    .rotationEffect(.degrees(Double(index) * 6))
-            }
+            Circle()
+                .stroke(Color.primary.opacity(0.05), lineWidth: 2)
+                .padding(18)
 
             Circle()
                 .trim(from: 0, to: max(progress, 0.01))
                 .stroke(tint, style: StrokeStyle(lineWidth: 14, lineCap: .round))
                 .rotationEffect(.degrees(-90))
-
-            Rectangle()
-                .fill(tint)
-                .frame(width: 4, height: 72)
-                .offset(y: -36)
-                .rotationEffect(.degrees((progress * 360) - 90))
-
-            Circle()
-                .fill(tint)
-                .frame(width: 16, height: 16)
         }
     }
 }
@@ -440,14 +426,40 @@ struct TBPopoverView: View {
                 TBStatusItem.shared?.closePopover(nil)
             } label: {
                 HStack {
-                    Text(
-                        clockWindowController.isVisible
-                            ? NSLocalizedString("TBPopoverView.clockWindow.hide.label", comment: "Hide clock window label")
-                            : NSLocalizedString("TBPopoverView.clockWindow.show.label", comment: "Show clock window label")
-                    )
+                    Image(systemName: clockWindowController.isVisible ? "clock.badge.xmark" : "clock.badge")
+                        .font(.title3)
+                        .foregroundColor(.accentColor)
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(
+                            clockWindowController.isVisible
+                                ? NSLocalizedString("TBPopoverView.clockWindow.hide.label", comment: "Hide clock window label")
+                                : NSLocalizedString("TBPopoverView.clockWindow.show.label", comment: "Show clock window label")
+                        )
+                        .font(.headline)
+                        .foregroundColor(.primary)
+
+                        Text(timer.canReset ? timer.phaseDisplayText : timer.timeLeftString)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
                     Spacer()
-                    Text(timer.timeLeftString).foregroundColor(.gray)
+                    Text(timer.timeLeftString)
+                        .foregroundColor(.secondary)
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(.secondary)
                 }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.accentColor.opacity(0.08))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.accentColor.opacity(0.18), lineWidth: 1)
+                )
             }
             .buttonStyle(.plain)
 

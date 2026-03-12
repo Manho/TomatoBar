@@ -94,11 +94,11 @@ class TBClockWindowController: NSObject, ObservableObject, NSWindowDelegate {
         }
 
         if isPinned {
-            window.level = .statusBar
+            window.level = .floating
             window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         } else {
-            window.level = .floating
-            window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
+            window.level = .normal
+            window.collectionBehavior = [.moveToActiveSpace]
         }
     }
 }
