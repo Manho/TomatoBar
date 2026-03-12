@@ -347,19 +347,19 @@ struct TBClockWindowView: View {
     var body: some View {
         GeometryReader { proxy in
             let size = proxy.size
-            let minimalLayout = size.width < 260 || size.height < 280
+            let minimalLayout = size.width < 300 || size.height < 340
             let compactLayout = size.width < 330 || size.height < 390
-            let horizontalPadding = minimalLayout ? 10.0 : (compactLayout ? 12.0 : 18.0)
-            let verticalPadding = minimalLayout ? 10.0 : (compactLayout ? 12.0 : 18.0)
-            let controlsTopSpacing = minimalLayout ? 10.0 : (compactLayout ? 12.0 : 18.0)
+            let horizontalPadding = minimalLayout ? 8.0 : (compactLayout ? 12.0 : 18.0)
+            let verticalPadding = minimalLayout ? 8.0 : (compactLayout ? 12.0 : 18.0)
+            let controlsTopSpacing = minimalLayout ? 8.0 : (compactLayout ? 12.0 : 18.0)
             let targetTopSpacing = minimalLayout ? 0.0 : (compactLayout ? 8.0 : 12.0)
             let pinTopSpacing = compactLayout ? 0.0 : 16.0
             let buttonWidth = minimalLayout
-                ? min(max(size.width * 0.34, 72), 88)
+                ? min(max(size.width * 0.34, 66), 80)
                 : compactLayout
                 ? min(max(size.width * 0.3, 86), 104)
                 : min(max(size.width * 0.24, 102), 120)
-            let buttonHeightEstimate = minimalLayout ? 28.0 : (compactLayout ? 32.0 : 36.0)
+            let buttonHeightEstimate = minimalLayout ? 26.0 : (compactLayout ? 32.0 : 36.0)
             let targetBlockHeight = minimalLayout ? 0.0 : (compactLayout ? 24.0 : 32.0)
             let pinBlockHeight = compactLayout ? 0.0 : 34.0
             let dialAvailableHeight = size.height
@@ -371,11 +371,11 @@ struct TBClockWindowView: View {
                 - pinTopSpacing
                 - pinBlockHeight
             let dialAvailableWidth = size.width - (horizontalPadding * 2)
-            let dialMinimum = minimalLayout ? 132.0 : (compactLayout ? 148.0 : 200.0)
-            let dialMaximum = minimalLayout ? 180.0 : (compactLayout ? 220.0 : 320.0)
+            let dialMinimum = minimalLayout ? 112.0 : (compactLayout ? 148.0 : 200.0)
+            let dialMaximum = minimalLayout ? 156.0 : (compactLayout ? 220.0 : 320.0)
             let clampedDialSize = min(max(dialMinimum, min(dialAvailableWidth, dialAvailableHeight)), dialMaximum)
             let timeFontSize = minimalLayout
-                ? min(max(clampedDialSize * 0.2, 22), 30)
+                ? min(max(clampedDialSize * 0.19, 20), 28)
                 : compactLayout
                 ? min(max(clampedDialSize * 0.17, 24), 36)
                 : min(max(clampedDialSize * 0.18, 32), 50)
