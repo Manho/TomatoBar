@@ -235,7 +235,6 @@ private struct HeatmapGridView: View {
 
 private struct StatsView: View {
     @EnvironmentObject var timer: TBTimer
-    @State private var heatmapRange = TBHeatmapRange.last30Days
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -277,16 +276,10 @@ private struct StatsView: View {
 
             GroupBox(label: Text(NSLocalizedString("StatsView.heatmap.title", comment: "Heatmap title"))) {
                 VStack(alignment: .leading, spacing: 10) {
-                    Picker("", selection: $heatmapRange) {
-                        Text(NSLocalizedString("StatsView.heatmap.30d.label", comment: "30 day heatmap label"))
-                            .tag(TBHeatmapRange.last30Days)
-                        Text(NSLocalizedString("StatsView.heatmap.365d.label", comment: "365 day heatmap label"))
-                            .tag(TBHeatmapRange.last365Days)
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
-
-                    HeatmapGridView(days: timer.heatmapDays(for: heatmapRange))
+                    Text(NSLocalizedString("StatsView.heatmap.365d.label", comment: "365 day heatmap label"))
+                        .font(.subheadline.weight(.medium))
+                        .foregroundColor(.secondary)
+                    HeatmapGridView(days: timer.heatmapDays(for: .last365Days))
                 }
                 .padding(.top, 4)
             }
@@ -413,14 +406,16 @@ struct TBPopoverView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if timer.canReset {
-                HStack(spacing: 10) {
+                HStack(spacing: 8) {
                     primaryActionButton
-                        .frame(maxWidth: .infinity)
+                        .frame(width: 112)
                     resetActionButton
-                        .frame(maxWidth: .infinity)
+                        .frame(width: 112)
                 }
+                .frame(maxWidth: .infinity)
             } else {
                 primaryActionButton
+                    .frame(width: 112)
                     .frame(maxWidth: .infinity)
             }
 
@@ -467,11 +462,7 @@ struct TBPopoverView: View {
                 .padding(.vertical, 10)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.accentColor.opacity(0.08))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.accentColor.opacity(0.18), lineWidth: 1)
+                        .fill(Color.primary.opacity(0.05))
                 )
             }
             .buttonStyle(.plain)
