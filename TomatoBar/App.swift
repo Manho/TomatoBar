@@ -79,9 +79,10 @@ class TBClockWindowController: NSObject, ObservableObject, NSWindowDelegate {
         window.title = "TomatoBar Clock"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
-        window.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         window.isMovableByWindowBackground = true
-        window.setContentSize(NSSize(width: 320, height: 380))
+        window.minSize = NSSize(width: 320, height: 420)
+        window.setContentSize(NSSize(width: 360, height: 500))
         window.center()
         self.window = window
         applyPinning()

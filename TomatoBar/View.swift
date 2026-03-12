@@ -332,44 +332,63 @@ struct TBClockWindowView: View {
     }
 
     var body: some View {
-        VStack(spacing: 18) {
-            ClockDialView(progress: timer.progressFraction, tint: dialTint)
-                .frame(width: 240, height: 240)
-                .overlay(
-                    VStack(spacing: 6) {
-                        Text(timer.timeLeftString)
-                            .font(.system(size: 34, weight: .semibold, design: .monospaced))
-                        Text(timer.phaseDisplayText)
-                            .font(.headline)
-                            .foregroundColor(.secondary)
+        GeometryReader { proxy in
+            let size = proxy.size
+            let dialSize = min(size.width - 56, size.height * 0.55)
+            let clampedDialSize = max(220, dialSize)
+            let timeFontSize = max(34, clampedDialSize * 0.24)
+            let phaseFontSize = max(20, clampedDialSize * 0.095)
+            let targetTopSpacing = max(16, size.height * 0.035)
+            let controlsTopSpacing = max(18, size.height * 0.05)
+            let pinTopSpacing = max(22, size.height * 0.07)
+
+            VStack(spacing: 0) {
+                ClockDialView(progress: timer.progressFraction, tint: dialTint)
+                    .frame(width: clampedDialSize, height: clampedDialSize)
+                    .overlay(
+                        VStack(spacing: max(6, clampedDialSize * 0.025)) {
+                            Text(timer.timeLeftString)
+                                .font(.system(size: timeFontSize, weight: .semibold, design: .monospaced))
+                            Text(timer.phaseDisplayText)
+                                .font(.system(size: phaseFontSize, weight: .semibold))
+                                .foregroundColor(.secondary)
+                        }
+                    )
+
+                Text(targetText)
+                    .font(.system(size: max(18, clampedDialSize * 0.08), weight: .medium))
+                    .foregroundColor(.secondary)
+                    .padding(.top, targetTopSpacing)
+
+                HStack(spacing: 10) {
+                    Button(timer.primaryActionTitle) {
+                        timer.performPrimaryAction()
                     }
-                )
+                    .keyboardShortcut(.defaultAction)
 
-            Text(targetText)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-
-            HStack(spacing: 10) {
-                Button(timer.primaryActionTitle) {
-                    timer.performPrimaryAction()
-                }
-                .keyboardShortcut(.defaultAction)
-
-                if timer.canReset {
-                    Button(NSLocalizedString("TBPopoverView.reset.label", comment: "Reset label")) {
-                        timer.resetCurrentInterval()
+                    if timer.canReset {
+                        Button(NSLocalizedString("TBPopoverView.reset.label", comment: "Reset label")) {
+                            timer.resetCurrentInterval()
+                        }
                     }
                 }
-            }
-            .controlSize(.large)
+                .controlSize(.large)
+                .padding(.top, controlsTopSpacing)
 
-            Toggle(isOn: $controller.isPinned) {
-                Text(NSLocalizedString("ClockWindow.pin.label", comment: "Pin window label"))
+                Toggle(isOn: $controller.isPinned) {
+                    Text(NSLocalizedString("ClockWindow.pin.label", comment: "Pin window label"))
+                        .font(.system(size: max(17, clampedDialSize * 0.07), weight: .medium))
+                }
+                .toggleStyle(.switch)
+                .padding(.top, pinTopSpacing)
+
+                Spacer(minLength: 0)
             }
-            .toggleStyle(.switch)
         }
-        .padding(22)
-        .frame(minWidth: 320, minHeight: 360)
+        .padding(.horizontal, 28)
+        .padding(.top, 26)
+        .padding(.bottom, 30)
+        .frame(minWidth: 320, minHeight: 420)
     }
 }
 
