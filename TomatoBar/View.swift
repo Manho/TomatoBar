@@ -334,13 +334,17 @@ struct TBClockWindowView: View {
     var body: some View {
         GeometryReader { proxy in
             let size = proxy.size
-            let dialSize = min(size.width - 56, size.height * 0.55)
-            let clampedDialSize = max(220, dialSize)
-            let timeFontSize = max(34, clampedDialSize * 0.24)
-            let phaseFontSize = max(20, clampedDialSize * 0.095)
-            let targetTopSpacing = max(16, size.height * 0.035)
-            let controlsTopSpacing = max(18, size.height * 0.05)
-            let pinTopSpacing = max(22, size.height * 0.07)
+            let dialSize = min(size.width - 72, size.height * 0.5)
+            let clampedDialSize = min(max(220, dialSize), 320)
+            let timeFontSize = min(max(34, clampedDialSize * 0.21), 58)
+            let phaseFontSize = min(max(18, clampedDialSize * 0.08), 28)
+            let targetFontSize = min(max(18, clampedDialSize * 0.07), 24)
+            let targetTopSpacing = min(max(14, size.height * 0.03), 22)
+            let controlsTopSpacing = min(max(16, size.height * 0.035), 24)
+            let pinTopSpacing = min(max(16, size.height * 0.04), 24)
+            let buttonWidth = min(max(108, size.width * 0.24), 132)
+            let horizontalPadding = min(max(24, size.width * 0.06), 36)
+            let verticalPadding = min(max(22, size.height * 0.05), 30)
 
             VStack(spacing: 0) {
                 ClockDialView(progress: timer.progressFraction, tint: dialTint)
@@ -356,7 +360,7 @@ struct TBClockWindowView: View {
                     )
 
                 Text(targetText)
-                    .font(.system(size: max(18, clampedDialSize * 0.08), weight: .medium))
+                    .font(.system(size: targetFontSize, weight: .medium))
                     .foregroundColor(.secondary)
                     .padding(.top, targetTopSpacing)
 
@@ -365,11 +369,13 @@ struct TBClockWindowView: View {
                         timer.performPrimaryAction()
                     }
                     .keyboardShortcut(.defaultAction)
+                    .frame(width: buttonWidth)
 
                     if timer.canReset {
                         Button(NSLocalizedString("TBPopoverView.reset.label", comment: "Reset label")) {
                             timer.resetCurrentInterval()
                         }
+                        .frame(width: buttonWidth)
                     }
                 }
                 .controlSize(.large)
@@ -377,17 +383,15 @@ struct TBClockWindowView: View {
 
                 Toggle(isOn: $controller.isPinned) {
                     Text(NSLocalizedString("ClockWindow.pin.label", comment: "Pin window label"))
-                        .font(.system(size: max(17, clampedDialSize * 0.07), weight: .medium))
+                        .font(.system(size: min(max(16, clampedDialSize * 0.06), 22), weight: .medium))
                 }
                 .toggleStyle(.switch)
                 .padding(.top, pinTopSpacing)
-
-                Spacer(minLength: 0)
             }
+            .padding(.horizontal, horizontalPadding)
+            .padding(.vertical, verticalPadding)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
-        .padding(.horizontal, 28)
-        .padding(.top, 26)
-        .padding(.bottom, 30)
         .frame(minWidth: 320, minHeight: 420)
     }
 }
