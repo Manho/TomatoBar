@@ -347,19 +347,22 @@ struct TBClockWindowView: View {
     var body: some View {
         GeometryReader { proxy in
             let size = proxy.size
-            let minimalLayout = size.width < 300 || size.height < 340
+            let ultraCompactLayout = size.width < 220 || size.height < 230
+            let minimalLayout = ultraCompactLayout || size.width < 300 || size.height < 340
             let compactLayout = size.width < 330 || size.height < 390
-            let horizontalPadding = minimalLayout ? 4.0 : (compactLayout ? 12.0 : 18.0)
-            let verticalPadding = minimalLayout ? 4.0 : (compactLayout ? 12.0 : 18.0)
-            let controlsTopSpacing = minimalLayout ? 6.0 : (compactLayout ? 12.0 : 18.0)
+            let horizontalPadding = ultraCompactLayout ? 2.0 : (minimalLayout ? 4.0 : (compactLayout ? 12.0 : 18.0))
+            let verticalPadding = ultraCompactLayout ? 2.0 : (minimalLayout ? 4.0 : (compactLayout ? 12.0 : 18.0))
+            let controlsTopSpacing = ultraCompactLayout ? 4.0 : (minimalLayout ? 6.0 : (compactLayout ? 12.0 : 18.0))
             let targetTopSpacing = minimalLayout ? 0.0 : (compactLayout ? 8.0 : 12.0)
             let pinTopSpacing = compactLayout ? 0.0 : 16.0
-            let buttonWidth = minimalLayout
+            let buttonWidth = ultraCompactLayout
+                ? min(max(size.width * 0.26, 46), 58)
+                : minimalLayout
                 ? min(max(size.width * 0.32, 56), 72)
                 : compactLayout
                 ? min(max(size.width * 0.3, 86), 104)
                 : min(max(size.width * 0.24, 102), 120)
-            let buttonHeightEstimate = minimalLayout ? 22.0 : (compactLayout ? 32.0 : 36.0)
+            let buttonHeightEstimate = ultraCompactLayout ? 18.0 : (minimalLayout ? 22.0 : (compactLayout ? 32.0 : 36.0))
             let targetBlockHeight = minimalLayout ? 0.0 : (compactLayout ? 24.0 : 32.0)
             let pinBlockHeight = compactLayout ? 0.0 : 34.0
             let dialAvailableHeight = size.height
@@ -371,10 +374,12 @@ struct TBClockWindowView: View {
                 - pinTopSpacing
                 - pinBlockHeight
             let dialAvailableWidth = size.width - (horizontalPadding * 2)
-            let dialMinimum = minimalLayout ? 92.0 : (compactLayout ? 148.0 : 200.0)
-            let dialMaximum = minimalLayout ? 132.0 : (compactLayout ? 220.0 : 320.0)
+            let dialMinimum = ultraCompactLayout ? 72.0 : (minimalLayout ? 88.0 : (compactLayout ? 148.0 : 200.0))
+            let dialMaximum = ultraCompactLayout ? 104.0 : (minimalLayout ? 126.0 : (compactLayout ? 220.0 : 320.0))
             let clampedDialSize = min(max(dialMinimum, min(dialAvailableWidth, dialAvailableHeight)), dialMaximum)
-            let timeFontSize = minimalLayout
+            let timeFontSize = ultraCompactLayout
+                ? min(max(clampedDialSize * 0.16, 14), 18)
+                : minimalLayout
                 ? min(max(clampedDialSize * 0.18, 16), 24)
                 : compactLayout
                 ? min(max(clampedDialSize * 0.17, 24), 36)
@@ -419,7 +424,7 @@ struct TBClockWindowView: View {
                             .padding(.top, targetTopSpacing)
                     }
 
-                    HStack(spacing: minimalLayout ? 6 : (compactLayout ? 8 : 10)) {
+                    HStack(spacing: ultraCompactLayout ? 4 : (minimalLayout ? 6 : (compactLayout ? 8 : 10))) {
                         Button(timer.primaryActionTitle) {
                             timer.performPrimaryAction()
                         }
