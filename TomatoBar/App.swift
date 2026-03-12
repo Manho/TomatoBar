@@ -35,6 +35,10 @@ class TBClockWindowController: NSObject, ObservableObject, NSWindowDelegate {
     }
 
     private static let pinPreferenceKey = "clockWindowPinned"
+    private static let widthPreferenceKey = "clockWindowWidth"
+    private static let heightPreferenceKey = "clockWindowHeight"
+    private static let defaultContentSize = NSSize(width: 360, height: 500)
+    private static let minimumContentSize = NSSize(width: 148, height: 150)
     private let timer: TBTimer
     private var window: NSWindow?
 
@@ -65,6 +69,14 @@ class TBClockWindowController: NSObject, ObservableObject, NSWindowDelegate {
         isVisible = false
     }
 
+    func windowDidResize(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow, window == self.window else {
+            return
+        }
+
+        saveWindowContentSize(window.contentRect(forFrameRect: window.frame).size)
+    }
+
     private func getWindow() -> NSWindow {
         if let window {
             return window
@@ -81,20 +93,33 @@ class TBClockWindowController: NSObject, ObservableObject, NSWindowDelegate {
         window.titlebarAppearsTransparent = true
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         window.isMovableByWindowBackground = true
-        window.minSize = NSSize(width: 148, height: 150)
-
-        // Persist and restore window position/size across launches
-        if !window.setFrameAutosaveName("TomatoBarClockWindow") {
-            // Saved frame exists, it was restored automatically
-        } else {
-            // First launch or no saved frame: use default size
-            window.setContentSize(NSSize(width: 360, height: 500))
-            window.center()
-        }
+        window.minSize = Self.minimumContentSize
+        window.setContentSize(restoredContentSize())
+        window.center()
 
         self.window = window
         applyPinning()
         return window
+    }
+
+    private func restoredContentSize() -> NSSize {
+        let defaults = UserDefaults.standard
+        let savedWidth = defaults.object(forKey: Self.widthPreferenceKey) as? Double
+        let savedHeight = defaults.object(forKey: Self.heightPreferenceKey) as? Double
+
+        guard let savedWidth, let savedHeight else {
+            return Self.defaultContentSize
+        }
+
+        return NSSize(
+            width: max(savedWidth, Self.minimumContentSize.width),
+            height: max(savedHeight, Self.minimumContentSize.height)
+        )
+    }
+
+    private func saveWindowContentSize(_ size: NSSize) {
+        UserDefaults.standard.set(size.width, forKey: Self.widthPreferenceKey)
+        UserDefaults.standard.set(size.height, forKey: Self.heightPreferenceKey)
     }
 
     private func applyPinning() {
