@@ -348,16 +348,16 @@ struct TBClockWindowView: View {
         GeometryReader { proxy in
             let size = proxy.size
             let compactLayout = size.width < 330 || size.height < 390
-            let horizontalPadding = compactLayout ? 14.0 : 18.0
-            let verticalPadding = compactLayout ? 14.0 : 18.0
-            let controlsTopSpacing = compactLayout ? 14.0 : 18.0
-            let targetTopSpacing = compactLayout ? 0.0 : 12.0
+            let horizontalPadding = compactLayout ? 12.0 : 18.0
+            let verticalPadding = compactLayout ? 12.0 : 18.0
+            let controlsTopSpacing = compactLayout ? 12.0 : 18.0
+            let targetTopSpacing = compactLayout ? 8.0 : 12.0
             let pinTopSpacing = compactLayout ? 0.0 : 16.0
             let buttonWidth = compactLayout
                 ? min(max(size.width * 0.3, 86), 104)
                 : min(max(size.width * 0.24, 102), 120)
             let buttonHeightEstimate = compactLayout ? 32.0 : 36.0
-            let targetBlockHeight = compactLayout ? 0.0 : 32.0
+            let targetBlockHeight = compactLayout ? 24.0 : 32.0
             let pinBlockHeight = compactLayout ? 0.0 : 34.0
             let dialAvailableHeight = size.height
                 - (verticalPadding * 2)
@@ -368,16 +368,18 @@ struct TBClockWindowView: View {
                 - pinTopSpacing
                 - pinBlockHeight
             let dialAvailableWidth = size.width - (horizontalPadding * 2)
-            let dialMinimum = compactLayout ? 164.0 : 200.0
-            let dialMaximum = compactLayout ? 238.0 : 320.0
+            let dialMinimum = compactLayout ? 148.0 : 200.0
+            let dialMaximum = compactLayout ? 220.0 : 320.0
             let clampedDialSize = min(max(dialMinimum, min(dialAvailableWidth, dialAvailableHeight)), dialMaximum)
             let timeFontSize = compactLayout
-                ? min(max(clampedDialSize * 0.18, 28), 42)
+                ? min(max(clampedDialSize * 0.17, 24), 36)
                 : min(max(clampedDialSize * 0.18, 32), 50)
             let phaseFontSize = compactLayout
-                ? min(max(clampedDialSize * 0.07, 14), 19)
+                ? min(max(clampedDialSize * 0.065, 13), 17)
                 : min(max(clampedDialSize * 0.072, 16), 22)
-            let targetFontSize = min(max(clampedDialSize * 0.06, 14), 20)
+            let targetFontSize = compactLayout
+                ? min(max(clampedDialSize * 0.055, 13), 16)
+                : min(max(clampedDialSize * 0.06, 14), 20)
             let pinLabelFontSize = min(max(clampedDialSize * 0.05, 13), 17)
             let controlSize: ControlSize = compactLayout ? .regular : .large
 
@@ -397,12 +399,12 @@ struct TBClockWindowView: View {
                             }
                         )
 
-                    if !compactLayout {
-                        Text(targetText)
-                            .font(.system(size: targetFontSize, weight: .medium))
-                            .foregroundColor(.secondary)
-                            .padding(.top, targetTopSpacing)
-                    }
+                    Text(targetText)
+                        .font(.system(size: targetFontSize, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                        .padding(.top, targetTopSpacing)
 
                     HStack(spacing: compactLayout ? 8 : 10) {
                         Button(timer.primaryActionTitle) {
