@@ -82,8 +82,16 @@ class TBClockWindowController: NSObject, ObservableObject, NSWindowDelegate {
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
         window.isMovableByWindowBackground = true
         window.minSize = NSSize(width: 148, height: 150)
-        window.setContentSize(NSSize(width: 360, height: 500))
-        window.center()
+
+        // Persist and restore window position/size across launches
+        if !window.setFrameAutosaveName("TomatoBarClockWindow") {
+            // Saved frame exists, it was restored automatically
+        } else {
+            // First launch or no saved frame: use default size
+            window.setContentSize(NSSize(width: 360, height: 500))
+            window.center()
+        }
+
         self.window = window
         applyPinning()
         return window
