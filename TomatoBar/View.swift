@@ -1,3 +1,4 @@
+import AppKit
 import KeyboardShortcuts
 import LaunchAtLogin
 import SwiftUI
@@ -21,6 +22,64 @@ private func heatmapDateText(for date: Date) -> String {
 private func localizedTomatoTreeCountText(_ count: Int) -> String {
     let format = NSLocalizedString("StatsView.heatmap.tomatoTrees.format", comment: "Tomato tree count text")
     return String.localizedStringWithFormat(format, count)
+}
+
+private struct HoverTrackingArea: NSViewRepresentable {
+    let onLocationChanged: (CGPoint?) -> Void
+
+    func makeNSView(context: Context) -> HoverTrackingNSView {
+        let view = HoverTrackingNSView()
+        view.onLocationChanged = onLocationChanged
+        return view
+    }
+
+    func updateNSView(_ nsView: HoverTrackingNSView, context: Context) {
+        nsView.onLocationChanged = onLocationChanged
+    }
+}
+
+private final class HoverTrackingNSView: NSView {
+    var onLocationChanged: ((CGPoint?) -> Void)?
+
+    private var trackingArea: NSTrackingArea?
+
+    override var isFlipped: Bool {
+        true
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+
+        if let trackingArea {
+            removeTrackingArea(trackingArea)
+        }
+
+        let trackingArea = NSTrackingArea(
+            rect: bounds,
+            options: [.activeAlways, .inVisibleRect, .mouseEnteredAndExited, .mouseMoved],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(trackingArea)
+        self.trackingArea = trackingArea
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        window?.acceptsMouseMovedEvents = true
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        onLocationChanged?(convert(event.locationInWindow, from: nil))
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        onLocationChanged?(convert(event.locationInWindow, from: nil))
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        onLocationChanged?(nil)
+    }
 }
 
 private struct IntervalsView: View {
@@ -180,6 +239,13 @@ private struct HeatmapGridView: View {
         let day: TBHeatmapDay?
     }
 
+    private enum Layout {
+        static let rowsPerColumn = 7
+        static let cellSize: CGFloat = 12
+        static let cellSpacing: CGFloat = 4
+        static let gridVerticalPadding: CGFloat = 2
+    }
+
     let days: [TBHeatmapDay]
     @State private var hoveredDayID: Date?
 
@@ -218,14 +284,14 @@ private struct HeatmapGridView: View {
                     day: day
                 )
             )
-            if currentColumn.count == 7 {
+            if currentColumn.count == Layout.rowsPerColumn {
                 result.append(currentColumn)
                 currentColumn = []
             }
         }
 
         if !currentColumn.isEmpty {
-            while currentColumn.count < 7 {
+            while currentColumn.count < Layout.rowsPerColumn {
                 let columnIndex = result.count
                 let rowIndex = currentColumn.count
                 currentColumn.append(
@@ -259,6 +325,49 @@ private struct HeatmapGridView: View {
         return calendar.isDate(day.date, inSameDayAs: today)
     }
 
+    private func updateHoveredDay(for location: CGPoint?) {
+        guard let location else {
+            hoveredDayID = nil
+            return
+        }
+
+        hoveredDayID = hoveredDayID(at: location)
+    }
+
+    private func hoveredDayID(at location: CGPoint) -> Date? {
+        let adjustedX = location.x
+        let adjustedY = location.y - Layout.gridVerticalPadding
+        let stride = Layout.cellSize + Layout.cellSpacing
+
+        guard adjustedX >= 0, adjustedY >= 0 else {
+            return nil
+        }
+
+        let columnIndex = Int(adjustedX / stride)
+        let rowIndex = Int(adjustedY / stride)
+
+        guard columns.indices.contains(columnIndex) else {
+            return nil
+        }
+
+        guard columns[columnIndex].indices.contains(rowIndex) else {
+            return nil
+        }
+
+        let cellOriginX = CGFloat(columnIndex) * stride
+        let cellOriginY = CGFloat(rowIndex) * stride
+        let isWithinCellBounds = adjustedX >= cellOriginX
+            && adjustedX < cellOriginX + Layout.cellSize
+            && adjustedY >= cellOriginY
+            && adjustedY < cellOriginY + Layout.cellSize
+
+        guard isWithinCellBounds else {
+            return nil
+        }
+
+        return columns[columnIndex][rowIndex].day?.id
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let displayedDay {
@@ -273,10 +382,10 @@ private struct HeatmapGridView: View {
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: 4) {
+                HStack(alignment: .top, spacing: Layout.cellSpacing) {
                     ForEach(columns.indices, id: \.self) { columnIndex in
                         let column = columns[columnIndex]
-                        VStack(spacing: 4) {
+                        VStack(spacing: Layout.cellSpacing) {
                             ForEach(column) { cell in
                                 let day = cell.day
                                 RoundedRectangle(cornerRadius: 3)
@@ -285,16 +394,15 @@ private struct HeatmapGridView: View {
                                         RoundedRectangle(cornerRadius: 3)
                                             .stroke(isToday(day) ? Color.primary.opacity(0.45) : .clear, lineWidth: 1)
                                     )
-                                    .frame(width: 12, height: 12)
-                                    .contentShape(Rectangle())
-                                    .onHover { isHovering in
-                                        hoveredDayID = isHovering ? day?.id : nil
-                                    }
+                                    .frame(width: Layout.cellSize, height: Layout.cellSize)
                             }
                         }
                     }
                 }
-                .padding(.vertical, 2)
+                .padding(.vertical, Layout.gridVerticalPadding)
+                .background(
+                    HoverTrackingArea(onLocationChanged: updateHoveredDay(for:))
+                )
             }
         }
     }
