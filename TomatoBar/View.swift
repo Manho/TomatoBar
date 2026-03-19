@@ -175,6 +175,11 @@ private struct StatsSectionView: View {
 }
 
 private struct HeatmapGridView: View {
+    private struct HeatmapCell: Identifiable {
+        let id: String
+        let day: TBHeatmapDay?
+    }
+
     let days: [TBHeatmapDay]
     @State private var hoveredDayID: Date?
 
@@ -200,12 +205,19 @@ private struct HeatmapGridView: View {
         return todayDay ?? days.last
     }
 
-    private var columns: [[TBHeatmapDay?]] {
-        var result: [[TBHeatmapDay?]] = []
-        var currentColumn: [TBHeatmapDay?] = []
+    private var columns: [[HeatmapCell]] {
+        var result: [[HeatmapCell]] = []
+        var currentColumn: [HeatmapCell] = []
 
         for day in days {
-            currentColumn.append(day)
+            let columnIndex = result.count
+            let rowIndex = currentColumn.count
+            currentColumn.append(
+                HeatmapCell(
+                    id: "\(columnIndex)-\(rowIndex)-\(day.id.timeIntervalSinceReferenceDate)",
+                    day: day
+                )
+            )
             if currentColumn.count == 7 {
                 result.append(currentColumn)
                 currentColumn = []
@@ -214,7 +226,14 @@ private struct HeatmapGridView: View {
 
         if !currentColumn.isEmpty {
             while currentColumn.count < 7 {
-                currentColumn.append(nil)
+                let columnIndex = result.count
+                let rowIndex = currentColumn.count
+                currentColumn.append(
+                    HeatmapCell(
+                        id: "\(columnIndex)-\(rowIndex)-empty",
+                        day: nil
+                    )
+                )
             }
             result.append(currentColumn)
         }
@@ -255,9 +274,11 @@ private struct HeatmapGridView: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: 4) {
-                    ForEach(Array(columns.enumerated()), id: \.offset) { _, column in
+                    ForEach(columns.indices, id: \.self) { columnIndex in
+                        let column = columns[columnIndex]
                         VStack(spacing: 4) {
-                            ForEach(Array(column.enumerated()), id: \.offset) { _, day in
+                            ForEach(column) { cell in
+                                let day = cell.day
                                 RoundedRectangle(cornerRadius: 3)
                                     .fill(color(for: day?.count ?? 0))
                                     .overlay(
