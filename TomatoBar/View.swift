@@ -176,9 +176,28 @@ private struct StatsSectionView: View {
 
 private struct HeatmapGridView: View {
     let days: [TBHeatmapDay]
+    @State private var hoveredDayID: Date?
+
+    private let calendar = Calendar.current
 
     private var maxCount: Int {
         max(days.map(\.count).max() ?? 0, 1)
+    }
+
+    private var today: Date {
+        calendar.startOfDay(for: Date())
+    }
+
+    private var todayDay: TBHeatmapDay? {
+        days.last { calendar.isDate($0.date, inSameDayAs: today) }
+    }
+
+    private var displayedDay: TBHeatmapDay? {
+        if let hoveredDayID {
+            return days.first { $0.id == hoveredDayID }
+        }
+
+        return todayDay ?? days.last
     }
 
     private var columns: [[TBHeatmapDay?]] {
@@ -205,35 +224,63 @@ private struct HeatmapGridView: View {
 
     private func color(for count: Int) -> Color {
         guard count > 0 else {
-            return Color.orange.opacity(0.08)
+            return Color(red: 0.96, green: 0.93, blue: 0.89)
         }
 
         let normalized = min(Double(count) / Double(maxCount), 1.0)
-        let opacity = 0.22 + (sqrt(normalized) * 0.72)
-        return Color.orange.opacity(opacity)
+        let opacity = 0.35 + (sqrt(normalized) * 0.65)
+        return Color(red: 1.0, green: 0.47, blue: 0.16).opacity(opacity)
+    }
+
+    private func isToday(_ day: TBHeatmapDay?) -> Bool {
+        guard let day else {
+            return false
+        }
+
+        return calendar.isDate(day.date, inSameDayAs: today)
     }
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(alignment: .top, spacing: 4) {
-                ForEach(Array(columns.enumerated()), id: \.offset) { _, column in
-                    VStack(spacing: 4) {
-                        ForEach(Array(column.enumerated()), id: \.offset) { _, day in
-                            RoundedRectangle(cornerRadius: 3)
-                                .fill(color(for: day?.count ?? 0))
-                                .frame(width: 11, height: 11)
-                                .help(day.map { heatmapHelpText(for: $0) } ?? "")
+        VStack(alignment: .leading, spacing: 8) {
+            if let displayedDay {
+                HStack(spacing: 6) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(color(for: displayedDay.count))
+                        .frame(width: 10, height: 10)
+                    Text(heatmapHelpText(for: displayedDay))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 4) {
+                    ForEach(Array(columns.enumerated()), id: \.offset) { _, column in
+                        VStack(spacing: 4) {
+                            ForEach(Array(column.enumerated()), id: \.offset) { _, day in
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(color(for: day?.count ?? 0))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 3)
+                                            .stroke(isToday(day) ? Color.primary.opacity(0.45) : .clear, lineWidth: 1)
+                                    )
+                                    .frame(width: 12, height: 12)
+                                    .contentShape(Rectangle())
+                                    .onHover { isHovering in
+                                        hoveredDayID = isHovering ? day?.id : nil
+                                    }
+                            }
                         }
                     }
                 }
+                .padding(.vertical, 2)
             }
-            .padding(.vertical, 2)
         }
     }
 
     private func heatmapHelpText(for day: TBHeatmapDay) -> String {
         let dateText = heatmapDateText(for: day.date)
-        return "\(dateText)\n\(localizedTomatoTreeCountText(day.count))"
+        return "\(dateText) · \(localizedTomatoTreeCountText(day.count))"
     }
 }
 
