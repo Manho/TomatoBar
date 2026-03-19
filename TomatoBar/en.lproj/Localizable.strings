@@ -46,4 +46,5 @@
 "StatsView.heatmap.title" = "Heatmap";
 "StatsView.heatmap.30d.label" = "30D";
 "StatsView.heatmap.365d.label" = "365D";
+"StatsView.heatmap.tomatoTrees.format" = "%d tomato trees";
 "ClockWindow.pin.label" = "Pin on top";

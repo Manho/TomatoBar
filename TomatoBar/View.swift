@@ -18,6 +18,11 @@ private func heatmapDateText(for date: Date) -> String {
     return formatter.string(from: date)
 }
 
+private func localizedTomatoTreeCountText(_ count: Int) -> String {
+    let format = NSLocalizedString("StatsView.heatmap.tomatoTrees.format", comment: "Tomato tree count text")
+    return String.localizedStringWithFormat(format, count)
+}
+
 private struct IntervalsView: View {
     @EnvironmentObject var timer: TBTimer
     private var minStr = NSLocalizedString("IntervalsView.min", comment: "min")
@@ -172,6 +177,10 @@ private struct StatsSectionView: View {
 private struct HeatmapGridView: View {
     let days: [TBHeatmapDay]
 
+    private var maxCount: Int {
+        max(days.map(\.count).max() ?? 0, 1)
+    }
+
     private var columns: [[TBHeatmapDay?]] {
         var result: [[TBHeatmapDay?]] = []
         var currentColumn: [TBHeatmapDay?] = []
@@ -195,18 +204,13 @@ private struct HeatmapGridView: View {
     }
 
     private func color(for count: Int) -> Color {
-        switch count {
-        case ..<1:
-            return Color.orange.opacity(0.12)
-        case 1:
-            return Color.orange.opacity(0.35)
-        case 2:
-            return Color.orange.opacity(0.55)
-        case 3:
-            return Color.orange.opacity(0.75)
-        default:
-            return Color.orange
+        guard count > 0 else {
+            return Color.orange.opacity(0.08)
         }
+
+        let normalized = min(Double(count) / Double(maxCount), 1.0)
+        let opacity = 0.22 + (sqrt(normalized) * 0.72)
+        return Color.orange.opacity(opacity)
     }
 
     var body: some View {
@@ -229,7 +233,7 @@ private struct HeatmapGridView: View {
 
     private func heatmapHelpText(for day: TBHeatmapDay) -> String {
         let dateText = heatmapDateText(for: day.date)
-        return "\(dateText): \(day.count)"
+        return "\(dateText)\n\(localizedTomatoTreeCountText(day.count))"
     }
 }
 

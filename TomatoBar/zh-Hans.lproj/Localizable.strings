@@ -46,4 +46,5 @@
 "StatsView.heatmap.title" = "热力图";
 "StatsView.heatmap.30d.label" = "30天";
 "StatsView.heatmap.365d.label" = "365天";
+"StatsView.heatmap.tomatoTrees.format" = "%d棵番茄树";
 "ClockWindow.pin.label" = "窗口置顶";

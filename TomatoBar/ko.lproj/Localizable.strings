@@ -46,4 +46,5 @@
 "StatsView.heatmap.title" = "히트맵";
 "StatsView.heatmap.30d.label" = "30일";
 "StatsView.heatmap.365d.label" = "365일";
+"StatsView.heatmap.tomatoTrees.format" = "토마토 나무 %d그루";
 "ClockWindow.pin.label" = "항상 위에 표시";

@@ -150,6 +150,7 @@ class TBTimer: ObservableObject {
         KeyboardShortcuts.onKeyUp(for: .startStopTimer, action: performPrimaryAction)
         notificationCenter.setActionHandler(handler: onNotificationAction)
         refreshHistoryDerivedState()
+        startObservingDayChanges()
 
         let aem: NSAppleEventManager = NSAppleEventManager.shared()
         aem.setEventHandler(self,
@@ -182,6 +183,14 @@ class TBTimer: ObservableObject {
             print("url handling error: unknown command \(host)")
             return
         }
+    }
+
+    @objc private func handleCalendarDayChanged() {
+        refreshHistoryDerivedState()
+    }
+
+    @objc private func handleApplicationDidBecomeActive() {
+        refreshHistoryDerivedState()
     }
 
     var isIdle: Bool {
@@ -512,6 +521,21 @@ class TBTimer: ObservableObject {
 
     private func refreshHistoryDerivedState() {
         todaySummary = historyStore.summaryForToday()
+    }
+
+    private func startObservingDayChanges() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleCalendarDayChanged),
+            name: NSNotification.Name.NSCalendarDayChanged,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleApplicationDidBecomeActive),
+            name: NSApplication.didBecomeActiveNotification,
+            object: nil
+        )
     }
 
     private func transition(to newState: TBTimerState, event: TBTimerEvent) {
