@@ -339,8 +339,14 @@ private struct HeatmapGridView: View {
         let day: TBHeatmapDay?
     }
 
+    private enum UX {
+        static let trailingAnchorID = "heatmap-trailing-anchor"
+        static let gapClearDelay: TimeInterval = 0.08
+    }
+
     let days: [TBHeatmapDay]
     @State private var hoveredDayID: Date?
+    @State private var pendingHoverClear: DispatchWorkItem?
 
     private let calendar = Calendar.current
 
@@ -393,59 +399,108 @@ private struct HeatmapGridView: View {
     }
 
     private func updateHoveredDay(for location: CGPoint?) {
+        pendingHoverClear?.cancel()
+
         guard let location else {
-            hoveredDayID = nil
+            if hoveredDayID != nil {
+                hoveredDayID = nil
+            }
             return
         }
 
-        hoveredDayID = hoveredDayID(at: location)
+        let nextHoveredDayID = hoveredDayID(at: location)
+
+        if let nextHoveredDayID {
+            if hoveredDayID != nextHoveredDayID {
+                hoveredDayID = nextHoveredDayID
+            }
+            return
+        }
+
+        guard hoveredDayID != nil else {
+            return
+        }
+
+        let workItem = DispatchWorkItem {
+            hoveredDayID = nil
+            pendingHoverClear = nil
+        }
+        pendingHoverClear = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + UX.gapClearDelay, execute: workItem)
     }
 
     private func hoveredDayID(at location: CGPoint) -> Date? {
         TBHeatmapHoverHitTester.hoveredDayID(at: location, dayColumns: dayColumns)
     }
 
+    private func scrollToLatest(using proxy: ScrollViewProxy) {
+        DispatchQueue.main.async {
+            var transaction = Transaction()
+            transaction.animation = nil
+            withTransaction(transaction) {
+                proxy.scrollTo(UX.trailingAnchorID, anchor: .trailing)
+            }
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Group {
-                if let displayedDay {
-                    HStack(spacing: 6) {
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(color(for: displayedDay.count))
-                            .frame(width: 10, height: 10)
-                        Text(heatmapHelpText(for: displayedDay))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                } else {
-                    Color.clear
-                        .frame(height: 16)
-                }
-            }
+            HStack(spacing: 6) {
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(displayedDay.map { color(for: $0.count) } ?? .clear)
+                    .frame(width: 10, height: 10)
+                    .opacity(displayedDay == nil ? 0 : 1)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: TBHeatmapLayout.cellSpacing) {
-                    ForEach(columns.indices, id: \.self) { columnIndex in
-                        let column = columns[columnIndex]
-                        VStack(spacing: TBHeatmapLayout.cellSpacing) {
-                            ForEach(column) { cell in
-                                let day = cell.day
-                                RoundedRectangle(cornerRadius: 3)
-                                    .fill(color(for: day?.count ?? 0))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 3)
-                                            .stroke(isToday(day) ? Color.primary.opacity(0.45) : .clear, lineWidth: 1)
-                                    )
-                                    .frame(width: TBHeatmapLayout.cellSize, height: TBHeatmapLayout.cellSize)
+                Text(displayedDay.map(heatmapHelpText(for:)) ?? " ")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(height: 16)
+
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(alignment: .top, spacing: TBHeatmapLayout.cellSpacing) {
+                        ForEach(columns.indices, id: \.self) { columnIndex in
+                            let column = columns[columnIndex]
+                            VStack(spacing: TBHeatmapLayout.cellSpacing) {
+                                ForEach(column) { cell in
+                                    let day = cell.day
+                                    RoundedRectangle(cornerRadius: 3)
+                                        .fill(color(for: day?.count ?? 0))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 3)
+                                                .stroke(isToday(day) ? Color.primary.opacity(0.45) : .clear, lineWidth: 1)
+                                        )
+                                        .frame(width: TBHeatmapLayout.cellSize, height: TBHeatmapLayout.cellSize)
+                                }
                             }
                         }
+                        Color.clear
+                            .frame(width: 1, height: 1)
+                            .id(UX.trailingAnchorID)
                     }
+                    .padding(.vertical, TBHeatmapLayout.gridVerticalPadding)
+                    .background(
+                        HoverTrackingArea(onLocationChanged: updateHoveredDay(for:))
+                    )
                 }
-                .padding(.vertical, TBHeatmapLayout.gridVerticalPadding)
-                .background(
-                    HoverTrackingArea(onLocationChanged: updateHoveredDay(for:))
-                )
+                .onAppear {
+                    scrollToLatest(using: proxy)
+                }
+                .onChange(of: days.last?.id) { _ in
+                    scrollToLatest(using: proxy)
+                }
             }
+        }
+        .transaction { transaction in
+            transaction.animation = nil
+        }
+        .onDisappear {
+            pendingHoverClear?.cancel()
+            pendingHoverClear = nil
+            hoveredDayID = nil
         }
     }
 
