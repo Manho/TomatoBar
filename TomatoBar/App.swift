@@ -161,6 +161,10 @@ class TBStatusItem: NSObject, NSApplicationDelegate {
         statusBarItem?.button?.imagePosition = .imageLeft
         setIcon(name: .idle)
         statusBarItem?.button?.action = #selector(TBStatusItem.togglePopover(_:))
+
+        if ProcessInfo.processInfo.environment["TB_TEST_HEATMAP_SELFTEST"] == "1" {
+            writeHeatmapHoverSelfTestReport()
+        }
     }
 
     func setTitle(title: String?) {
@@ -199,5 +203,16 @@ class TBStatusItem: NSObject, NSApplicationDelegate {
         } else {
             showPopover(sender)
         }
+    }
+
+    private func writeHeatmapHoverSelfTestReport() {
+        let report = TBHeatmapHoverSelfTest.report(for: timer.heatmapDays(for: .last365Days))
+        let reportURL = URL(fileURLWithPath: "/tmp/tomatobar-heatmap-self-test.json")
+
+        guard let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]) else {
+            return
+        }
+
+        try? data.write(to: reportURL, options: .atomic)
     }
 }

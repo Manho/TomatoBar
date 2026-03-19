@@ -24,6 +24,106 @@ private func localizedTomatoTreeCountText(_ count: Int) -> String {
     return String.localizedStringWithFormat(format, count)
 }
 
+enum TBHeatmapLayout {
+    static let rowsPerColumn = 7
+    static let cellSize: CGFloat = 12
+    static let cellSpacing: CGFloat = 4
+    static let gridVerticalPadding: CGFloat = 2
+}
+
+func tbHeatmapDayColumns(from days: [TBHeatmapDay], rowsPerColumn: Int = TBHeatmapLayout.rowsPerColumn) -> [[TBHeatmapDay?]] {
+    var result: [[TBHeatmapDay?]] = []
+    var currentColumn: [TBHeatmapDay?] = []
+
+    for day in days {
+        currentColumn.append(day)
+        if currentColumn.count == rowsPerColumn {
+            result.append(currentColumn)
+            currentColumn = []
+        }
+    }
+
+    if !currentColumn.isEmpty {
+        while currentColumn.count < rowsPerColumn {
+            currentColumn.append(nil)
+        }
+        result.append(currentColumn)
+    }
+
+    return result
+}
+
+enum TBHeatmapHoverHitTester {
+    static func hoveredDayID(
+        at location: CGPoint,
+        dayColumns: [[TBHeatmapDay?]],
+        cellSize: CGFloat = TBHeatmapLayout.cellSize,
+        cellSpacing: CGFloat = TBHeatmapLayout.cellSpacing,
+        verticalPadding: CGFloat = TBHeatmapLayout.gridVerticalPadding
+    ) -> Date? {
+        let adjustedX = location.x
+        let adjustedY = location.y - verticalPadding
+        let stride = cellSize + cellSpacing
+
+        guard adjustedX >= 0, adjustedY >= 0 else {
+            return nil
+        }
+
+        let columnIndex = Int(adjustedX / stride)
+        let rowIndex = Int(adjustedY / stride)
+
+        guard dayColumns.indices.contains(columnIndex) else {
+            return nil
+        }
+
+        guard dayColumns[columnIndex].indices.contains(rowIndex) else {
+            return nil
+        }
+
+        let cellOriginX = CGFloat(columnIndex) * stride
+        let cellOriginY = CGFloat(rowIndex) * stride
+        let isWithinCellBounds = adjustedX >= cellOriginX
+            && adjustedX < cellOriginX + cellSize
+            && adjustedY >= cellOriginY
+            && adjustedY < cellOriginY + cellSize
+
+        guard isWithinCellBounds else {
+            return nil
+        }
+
+        return dayColumns[columnIndex][rowIndex]?.id
+    }
+}
+
+enum TBHeatmapHoverSelfTest {
+    static func report(for days: [TBHeatmapDay]) -> [String: Bool] {
+        let dayColumns = tbHeatmapDayColumns(from: days)
+        let centerOfFirstCell = CGPoint(
+            x: TBHeatmapLayout.cellSize / 2,
+            y: TBHeatmapLayout.gridVerticalPadding + (TBHeatmapLayout.cellSize / 2)
+        )
+        let horizontalGap = CGPoint(
+            x: TBHeatmapLayout.cellSize + (TBHeatmapLayout.cellSpacing / 2),
+            y: TBHeatmapLayout.gridVerticalPadding + (TBHeatmapLayout.cellSize / 2)
+        )
+        let verticalGap = CGPoint(
+            x: TBHeatmapLayout.cellSize / 2,
+            y: TBHeatmapLayout.gridVerticalPadding + TBHeatmapLayout.cellSize + (TBHeatmapLayout.cellSpacing / 2)
+        )
+        let topPadding = CGPoint(
+            x: TBHeatmapLayout.cellSize / 2,
+            y: TBHeatmapLayout.gridVerticalPadding / 2
+        )
+
+        return [
+            "cellCenterResolvesDay": TBHeatmapHoverHitTester.hoveredDayID(at: centerOfFirstCell, dayColumns: dayColumns) != nil,
+            "horizontalGapClearsHover": TBHeatmapHoverHitTester.hoveredDayID(at: horizontalGap, dayColumns: dayColumns) == nil,
+            "verticalGapClearsHover": TBHeatmapHoverHitTester.hoveredDayID(at: verticalGap, dayColumns: dayColumns) == nil,
+            "topPaddingClearsHover": TBHeatmapHoverHitTester.hoveredDayID(at: topPadding, dayColumns: dayColumns) == nil
+        ]
+    }
+}
+
 private struct HoverTrackingArea: NSViewRepresentable {
     let onLocationChanged: (CGPoint?) -> Void
 
@@ -239,13 +339,6 @@ private struct HeatmapGridView: View {
         let day: TBHeatmapDay?
     }
 
-    private enum Layout {
-        static let rowsPerColumn = 7
-        static let cellSize: CGFloat = 12
-        static let cellSpacing: CGFloat = 4
-        static let gridVerticalPadding: CGFloat = 2
-    }
-
     let days: [TBHeatmapDay]
     @State private var hoveredDayID: Date?
 
@@ -259,52 +352,26 @@ private struct HeatmapGridView: View {
         calendar.startOfDay(for: Date())
     }
 
-    private var todayDay: TBHeatmapDay? {
-        days.last { calendar.isDate($0.date, inSameDayAs: today) }
-    }
-
     private var displayedDay: TBHeatmapDay? {
-        if let hoveredDayID {
-            return days.first { $0.id == hoveredDayID }
+        guard let hoveredDayID else {
+            return nil
         }
 
-        return todayDay ?? days.last
+        return days.first { $0.id == hoveredDayID }
+    }
+
+    private var dayColumns: [[TBHeatmapDay?]] {
+        tbHeatmapDayColumns(from: days)
     }
 
     private var columns: [[HeatmapCell]] {
-        var result: [[HeatmapCell]] = []
-        var currentColumn: [HeatmapCell] = []
-
-        for day in days {
-            let columnIndex = result.count
-            let rowIndex = currentColumn.count
-            currentColumn.append(
-                HeatmapCell(
-                    id: "\(columnIndex)-\(rowIndex)-\(day.id.timeIntervalSinceReferenceDate)",
-                    day: day
-                )
-            )
-            if currentColumn.count == Layout.rowsPerColumn {
-                result.append(currentColumn)
-                currentColumn = []
+        dayColumns.enumerated().map { columnIndex, column in
+            column.enumerated().map { rowIndex, day in
+                let identifier = day.map { "\(columnIndex)-\(rowIndex)-\($0.id.timeIntervalSinceReferenceDate)" }
+                    ?? "\(columnIndex)-\(rowIndex)-empty"
+                return HeatmapCell(id: identifier, day: day)
             }
         }
-
-        if !currentColumn.isEmpty {
-            while currentColumn.count < Layout.rowsPerColumn {
-                let columnIndex = result.count
-                let rowIndex = currentColumn.count
-                currentColumn.append(
-                    HeatmapCell(
-                        id: "\(columnIndex)-\(rowIndex)-empty",
-                        day: nil
-                    )
-                )
-            }
-            result.append(currentColumn)
-        }
-
-        return result
     }
 
     private func color(for count: Int) -> Color {
@@ -335,57 +402,32 @@ private struct HeatmapGridView: View {
     }
 
     private func hoveredDayID(at location: CGPoint) -> Date? {
-        let adjustedX = location.x
-        let adjustedY = location.y - Layout.gridVerticalPadding
-        let stride = Layout.cellSize + Layout.cellSpacing
-
-        guard adjustedX >= 0, adjustedY >= 0 else {
-            return nil
-        }
-
-        let columnIndex = Int(adjustedX / stride)
-        let rowIndex = Int(adjustedY / stride)
-
-        guard columns.indices.contains(columnIndex) else {
-            return nil
-        }
-
-        guard columns[columnIndex].indices.contains(rowIndex) else {
-            return nil
-        }
-
-        let cellOriginX = CGFloat(columnIndex) * stride
-        let cellOriginY = CGFloat(rowIndex) * stride
-        let isWithinCellBounds = adjustedX >= cellOriginX
-            && adjustedX < cellOriginX + Layout.cellSize
-            && adjustedY >= cellOriginY
-            && adjustedY < cellOriginY + Layout.cellSize
-
-        guard isWithinCellBounds else {
-            return nil
-        }
-
-        return columns[columnIndex][rowIndex].day?.id
+        TBHeatmapHoverHitTester.hoveredDayID(at: location, dayColumns: dayColumns)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if let displayedDay {
-                HStack(spacing: 6) {
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(color(for: displayedDay.count))
-                        .frame(width: 10, height: 10)
-                    Text(heatmapHelpText(for: displayedDay))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+            Group {
+                if let displayedDay {
+                    HStack(spacing: 6) {
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(color(for: displayedDay.count))
+                            .frame(width: 10, height: 10)
+                        Text(heatmapHelpText(for: displayedDay))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                } else {
+                    Color.clear
+                        .frame(height: 16)
                 }
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: Layout.cellSpacing) {
+                HStack(alignment: .top, spacing: TBHeatmapLayout.cellSpacing) {
                     ForEach(columns.indices, id: \.self) { columnIndex in
                         let column = columns[columnIndex]
-                        VStack(spacing: Layout.cellSpacing) {
+                        VStack(spacing: TBHeatmapLayout.cellSpacing) {
                             ForEach(column) { cell in
                                 let day = cell.day
                                 RoundedRectangle(cornerRadius: 3)
@@ -394,12 +436,12 @@ private struct HeatmapGridView: View {
                                         RoundedRectangle(cornerRadius: 3)
                                             .stroke(isToday(day) ? Color.primary.opacity(0.45) : .clear, lineWidth: 1)
                                     )
-                                    .frame(width: Layout.cellSize, height: Layout.cellSize)
+                                    .frame(width: TBHeatmapLayout.cellSize, height: TBHeatmapLayout.cellSize)
                             }
                         }
                     }
                 }
-                .padding(.vertical, Layout.gridVerticalPadding)
+                .padding(.vertical, TBHeatmapLayout.gridVerticalPadding)
                 .background(
                     HoverTrackingArea(onLocationChanged: updateHoveredDay(for:))
                 )
@@ -623,7 +665,9 @@ private enum ChildView {
 struct TBPopoverView: View {
     @ObservedObject var timer: TBTimer
     @ObservedObject var clockWindowController: TBClockWindowController
-    @State private var activeChildView = ChildView.intervals
+    @State private var activeChildView = ProcessInfo.processInfo.environment["TB_TEST_SHOW_STATS"] == "1"
+        ? ChildView.stats
+        : ChildView.intervals
 
     @ViewBuilder
     private var primaryActionButton: some View {
